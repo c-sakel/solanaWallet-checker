@@ -1,9 +1,9 @@
 import requests
 import json
 from datetime import datetime
+import pandas as pd
 from tabulate import tabulate
 
-# Configuration
 API_URL = 'https://gmgn.ai/defi/quotation/v1/smartmoney/sol/walletNew/'
 HEADERS = {
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -35,9 +35,18 @@ def process_data(data, wallet_address, period):
             pnl = data['data'][pnl_key]
             winrate = data['data']['winrate'] if data['data']['winrate'] is not None else 0
             realized_profit = data['data']['realized_profit'] if data['data']['realized_profit'] is not None else 0
-            last_active_timestamp = data['data'].get('last_active_timestamp', 0)
+            last_active_timestamp = data['data'].get('last_active_timestamp', 0) or 0
             last_pnl = pnl * 100
             last_winrate = winrate * 100
+
+            last_active_datetime = datetime.fromtimestamp(last_active_timestamp) if last_active_timestamp else "N/A"
+
+            if last_winrate > 75:
+                risk_rating = 'Low'
+            elif last_winrate > 50:
+                risk_rating = 'Medium'
+            else:
+                risk_rating = 'High'
 
             result = {
                 'Wallet Address': wallet_address,
@@ -45,7 +54,8 @@ def process_data(data, wallet_address, period):
                 f'PnL {period}': f'{round(last_pnl, 2)}%',
                 'Winrate': f'{round(last_winrate, 2)}%',
                 'Realized Profit': f'{realized_profit:.2f}$',
-                'Last Active Timestamp': datetime.fromtimestamp(last_active_timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                'Last Active Timestamp': last_active_datetime if last_active_datetime != "N/A" else "N/A",
+                'Risk Rating': risk_rating
             }
             return result
         except KeyError as e:
@@ -60,6 +70,9 @@ def main():
             wallet_addresses = file.read().strip().split('\n')
         
         results = []
+        total_sol_balance = 0
+        total_realized_profit = 0
+        
         for wallet_address in wallet_addresses:
             if wallet_address.strip():
                 data = fetch_wallet_data(wallet_address, period)
@@ -68,9 +81,17 @@ def main():
                 if result:
                     results.append(result)
                     print(tabulate([result], headers="keys", tablefmt="grid"))
-                    
-                    with open('results.txt', 'a') as file:
-                        file.write(json.dumps(result, indent=4) + '\n')
+                    total_sol_balance += float(result['SOL Balance'])
+                    total_realized_profit += float(result['Realized Profit'].replace('$', ''))
+        
+        df = pd.DataFrame(results)
+        df.to_excel('wallet_infos.xlsx', index=False)
+        print("The wallet information was saved in wallet_infos.xlsx.")
+        
+        # Output of the overall portfolio overview
+        print(f"\nTotal portfolio overview:")
+        print(f"Total SOL Balance: {total_sol_balance:.2f} SOL")
+        print(f"Total realized gain: {total_realized_profit:.2f}$")
 
     except FileNotFoundError:
         print("The file 'list.txt' was not found.")
