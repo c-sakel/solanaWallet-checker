@@ -9,6 +9,8 @@ This project retrieves and displays information about Solana wallet addresses, i
 - Python 3.7+
 - `requests` library
 - `tabulate` library
+- `pandas` library
+- `openpyxl` library
 
 ## Installation
 
@@ -30,7 +32,7 @@ pip install requests tabulate
 python script.py
 ```
 3. When prompted, enter the desired period for the winrate (7d or 30d).
-4. The script will fetch and display the information for each wallet address in a tabular format and save the results to results.txt in JSON format.
+4. The script will fetch and display the information for each wallet address in a tabular format and save the results to wallet_infos.xlsx in Excel format.
 
 ## Example
 ### Input
